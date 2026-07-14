@@ -104,15 +104,29 @@
 
     .model-base,
     .dress-svg,
+    .dress-shading {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .model-base {
+      object-fit: contain;
+      object-position: center;
+      z-index: 1;
+      user-select: none;
+      pointer-events: none;
+    }
+
     /*
-      A máscara e a textura agora vivem dentro de um SVG com viewBox
-      igual às dimensões reais da MODELO.png. Assim, desktop e mobile
-      usam exatamente as mesmas coordenadas.
+      Modelo, máscara, textura e sombras compartilham o mesmo
+      sistema de coordenadas da imagem MODELO.png.
     */
     .dress-svg {
       z-index: 2;
       display: block;
-      overflow: visible;
+      overflow: hidden;
       pointer-events: none;
     }
 
@@ -588,6 +602,7 @@
           />
 
           <svg
+            xmlns:xlink="http://www.w3.org/1999/xlink"
             class="dress-svg"
             id="dressSvg"
             aria-hidden="true"
@@ -614,11 +629,12 @@
 
             <g mask="url(#dressMaskSvg)">
 <image
-  class="dress-svg-texture"
-  id="dressTexture"
-  href="assets/LO0500_V1.jpg"
-  preserveAspectRatio="xMidYMax slice"
-/>
+                class="dress-svg-texture"
+                id="dressTexture"
+                href="assets/LO0500_V1.jpg"
+                xlink:href="assets/LO0500_V1.jpg"
+                preserveAspectRatio="xMidYMid meet"
+              />
             </g>
           </svg>
 
@@ -682,7 +698,7 @@
         textureScale: 1,
         textureX: "0%",
         textureY: "0%",
-        textureRotation: "0deg"
+        textureRotation: "90deg"
       },
       {
         title: "REF. 002",
@@ -739,49 +755,66 @@
     totalLabel.textContent = String(estampas.length).padStart(2, "0");
 
     function syncMaskBounds() {
-      if (!maskProbe.naturalWidth || !maskProbe.naturalHeight) return;
-
-      const canvas = document.createElement("canvas");
-      canvas.width = maskProbe.naturalWidth;
-      canvas.height = maskProbe.naturalHeight;
-
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(maskProbe, 0, 0);
-
-      const pixels = context.getImageData(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      ).data;
-
-      let left = canvas.width;
-      let top = canvas.height;
-      let right = -1;
-      let bottom = -1;
-
-      for (let y = 0; y < canvas.height; y += 1) {
-        for (let x = 0; x < canvas.width; x += 1) {
-          const alpha = pixels[(y * canvas.width + x) * 4 + 3];
-
-          if (alpha > 16) {
-            if (x < left) left = x;
-            if (x > right) right = x;
-            if (y < top) top = y;
-            if (y > bottom) bottom = y;
-          }
-        }
+      if (!maskProbe.naturalWidth || !maskProbe.naturalHeight) {
+        applyTextureSettings(estampas[index < 0 ? 0 : index]);
+        return;
       }
 
-      if (right >= left && bottom >= top) {
-        maskBounds = {
-          left,
-          top,
-          right,
-          bottom,
-          width: right - left + 1,
-          height: bottom - top + 1
-        };
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = maskProbe.naturalWidth;
+        canvas.height = maskProbe.naturalHeight;
+
+        const context = canvas.getContext("2d", {
+          willReadFrequently: true
+        });
+
+        context.drawImage(maskProbe, 0, 0);
+
+        const pixels = context.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        ).data;
+
+        let left = canvas.width;
+        let top = canvas.height;
+        let right = -1;
+        let bottom = -1;
+
+        for (let y = 0; y < canvas.height; y += 1) {
+          for (let x = 0; x < canvas.width; x += 1) {
+            const alpha = pixels[(y * canvas.width + x) * 4 + 3];
+
+            if (alpha > 16) {
+              if (x < left) left = x;
+              if (x > right) right = x;
+              if (y < top) top = y;
+              if (y > bottom) bottom = y;
+            }
+          }
+        }
+
+        if (right >= left && bottom >= top) {
+          maskBounds = {
+            left,
+            top,
+            right,
+            bottom,
+            width: right - left + 1,
+            height: bottom - top + 1
+          };
+        }
+      } catch (error) {
+        /*
+          Se o navegador impedir a leitura do PNG, o lookbook usa
+          os limites de segurança definidos em maskBounds.
+        */
+        console.warn(
+          "Não foi possível ler os limites da máscara; usando fallback.",
+          error
+        );
       }
 
       applyTextureSettings(estampas[index < 0 ? 0 : index]);
@@ -825,44 +858,40 @@
       const scale = item.textureScale ?? 1;
       const offsetX = parseFloat(item.textureX || "0") / 100;
       const offsetY = parseFloat(item.textureY || "0") / 100;
-      const rotation = parseFloat(item.textureRotation || "0");
+      const rotation = parseFloat(item.textureRotation || "90");
 
       /*
-        Caixa física da arte:
-        150 cm de altura × 50 cm de largura = proporção 3:1.
+        A arte física mede 150 × 50 cm, portanto a caixa original
+        é sempre 3:1. O preserveAspectRatio="meet" impede distorção.
 
-        O SVG usa preserveAspectRatio="slice", então a imagem mantém
-        sua proporção original e apenas corta o excesso, sem esticar.
+        Como a arte é girada 90°, sua dimensão longa passa a ocupar
+        a altura do vestido. A borda direita original vira a barra.
       */
       const longSide = maskBounds.height * ratio * scale;
       const shortSide = longSide / 3;
-
-      const normalizedRotation = ((rotation % 360) + 360) % 360;
-      const isQuarterTurn =
-        normalizedRotation === 90 || normalizedRotation === 270;
-
-      const imageWidth = isQuarterTurn ? longSide : shortSide;
-      const imageHeight = isQuarterTurn ? shortSide : longSide;
 
       const centerX =
         maskBounds.left +
         maskBounds.width / 2 +
         maskBounds.width * offsetX;
 
-      /*
-        A extremidade inferior da arte é ancorada na bainha.
-        Os 30 cm excedentes ficam escondidos acima do vestido.
-      */
       const centerY =
         maskBounds.bottom -
         longSide / 2 +
         maskBounds.height * offsetY;
 
       dressTexture.setAttribute("href", item.image);
-      dressTexture.setAttribute("x", -imageWidth / 2);
-      dressTexture.setAttribute("y", -imageHeight / 2);
-      dressTexture.setAttribute("width", imageWidth);
-      dressTexture.setAttribute("height", imageHeight);
+      dressTexture.setAttributeNS(
+        "http://www.w3.org/1999/xlink",
+        "xlink:href",
+        item.image
+      );
+
+      dressTexture.setAttribute("x", -longSide / 2);
+      dressTexture.setAttribute("y", -shortSide / 2);
+      dressTexture.setAttribute("width", longSide);
+      dressTexture.setAttribute("height", shortSide);
+
       dressTexture.setAttribute(
         "transform",
         `translate(${centerX} ${centerY}) rotate(${rotation})`
