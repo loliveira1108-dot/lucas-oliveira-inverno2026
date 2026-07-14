@@ -699,37 +699,37 @@
 
       title: referência que aparece como título
       image: arquivo do retângulo 1,50 × 0,50
-      textureWidth: largura da textura em relação à largura da MODELO.png
-      textureScale: escala fina
-      textureX/textureY: deslocamentos em porcentagem da MODELO.png
+      artHeightRatio: altura da arte em relação à altura útil do vestido
+      textureScale: ajuste fino de escala
+      textureX/textureY: ajuste fino relativo à área do vestido
       textureRotation: rotação; desktop e mobile usam as mesmas coordenadas
     */
     const estampas = [
       {
         title: "LO0500_V1",
         image: "assets/LO0500_V1.jpg",
-        textureWidth: "96%",
-        textureScale: 0.80,
+        artHeightRatio: 1.25,
+        textureScale: 1,
         textureX: "0%",
-        textureY: "-25%",
+        textureY: "0%",
         textureRotation: "90deg"
       },
       {
         title: "REF. 002",
         image: "assets/estampa-02.svg",
-        textureWidth: "96%",
-        textureScale: 0.84,
+        artHeightRatio: 1.25,
+        textureScale: 1,
         textureX: "0%",
-        textureY: "-8%",
+        textureY: "0%",
         textureRotation: "90deg"
       },
       {
         title: "REF. 003",
         image: "assets/estampa-03.svg",
-        textureWidth: "96%",
-        textureScale: 0.84,
+        artHeightRatio: 1.25,
+        textureScale: 1,
         textureX: "0%",
-        textureY: "-8%",
+        textureY: "0%",
         textureRotation: "90deg"
       }
     ];
@@ -741,6 +741,19 @@
     const dressTexture = document.querySelector("#dressTexture");
     const dressMaskImage = document.querySelector("#dressMaskImage");
     const modelBase = document.querySelector("#modelBase");
+
+    const maskProbe = new Image();
+    maskProbe.src = "assets/dress-mask.png";
+
+    // Fallback para os arquivos atuais (449 × 1402).
+    let maskBounds = {
+      left: 13,
+      top: 291,
+      right: 434,
+      bottom: 1260,
+      width: 422,
+      height: 970
+    };
     const modelWrap = document.querySelector(".model-wrap");
     const currentLabel = document.querySelector("#current");
     const totalLabel = document.querySelector("#total");
@@ -754,6 +767,61 @@
     let touchStartY = 0;
 
     totalLabel.textContent = String(estampas.length).padStart(2, "0");
+
+    function syncMaskBounds() {
+      if (!maskProbe.naturalWidth || !maskProbe.naturalHeight) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = maskProbe.naturalWidth;
+      canvas.height = maskProbe.naturalHeight;
+
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(maskProbe, 0, 0);
+
+      const pixels = context.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      ).data;
+
+      let left = canvas.width;
+      let top = canvas.height;
+      let right = -1;
+      let bottom = -1;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          const alpha = pixels[(y * canvas.width + x) * 4 + 3];
+
+          if (alpha > 16) {
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+          }
+        }
+      }
+
+      if (right >= left && bottom >= top) {
+        maskBounds = {
+          left,
+          top,
+          right,
+          bottom,
+          width: right - left + 1,
+          height: bottom - top + 1
+        };
+      }
+
+      applyTextureSettings(estampas[index < 0 ? 0 : index]);
+    }
+
+    if (maskProbe.complete) {
+      syncMaskBounds();
+    } else {
+      maskProbe.addEventListener("load", syncMaskBounds, { once: true });
+    }
 
     function syncModelGeometry() {
       if (!modelBase.naturalWidth || !modelBase.naturalHeight) return;
@@ -783,34 +851,41 @@
     function applyTextureSettings(item) {
       if (!modelBase.naturalWidth || !modelBase.naturalHeight) return;
 
-      const modelWidth = modelBase.naturalWidth;
-      const modelHeight = modelBase.naturalHeight;
-
-      const widthPercent = parseFloat(item.textureWidth || "96") / 100;
-      const scale = item.textureScale ?? 0.84;
+      const ratio = item.artHeightRatio ?? 1.25;
+      const scale = item.textureScale ?? 1;
       const offsetX = parseFloat(item.textureX || "0") / 100;
-      const offsetY = parseFloat(item.textureY || "-8") / 100;
+      const offsetY = parseFloat(item.textureY || "0") / 100;
       const rotation = parseFloat(item.textureRotation || "90");
 
       /*
-        A arte é 3:1. Antes da rotação:
-        largura = fração da largura da modelo;
-        altura = largura / 3.
-      */
-      const textureWidth = modelWidth * widthPercent;
-      const textureHeight = textureWidth / 3;
+        Arte: 150 × 50 cm.
+        Vestido visível: aproximadamente 120 cm.
+        150 / 120 = 1,25.
 
-      const centerX = modelWidth * (0.5 + offsetX);
-      const centerY = modelHeight * (0.5 + offsetY);
+        A arte é dimensionada pela altura útil real da máscara e o
+        barrado é ancorado diretamente na bainha.
+      */
+      const longSide = maskBounds.height * ratio * scale;
+      const shortSide = longSide / 3;
+
+      const centerX =
+        maskBounds.left +
+        maskBounds.width / 2 +
+        maskBounds.width * offsetX;
+
+      const centerY =
+        maskBounds.bottom -
+        longSide / 2 +
+        maskBounds.height * offsetY;
 
       dressTexture.setAttribute("href", item.image);
-      dressTexture.setAttribute("x", -textureWidth / 2);
-      dressTexture.setAttribute("y", -textureHeight / 2);
-      dressTexture.setAttribute("width", textureWidth);
-      dressTexture.setAttribute("height", textureHeight);
+      dressTexture.setAttribute("x", -longSide / 2);
+      dressTexture.setAttribute("y", -shortSide / 2);
+      dressTexture.setAttribute("width", longSide);
+      dressTexture.setAttribute("height", shortSide);
       dressTexture.setAttribute(
         "transform",
-        `translate(${centerX} ${centerY}) rotate(${rotation}) scale(${scale})`
+        `translate(${centerX} ${centerY}) rotate(${rotation})`
       );
     }
 
@@ -828,8 +903,6 @@
         title.textContent = item.title;
         printImage.src = item.image;
         printImage.alt = `Rapport da estampa ${item.title}`;
-dressTexture.setAttribute("href", item.image);
-
 applyTextureSettings(item);
         currentLabel.textContent = String(index + 1).padStart(2, "0");
         progressBar.style.width = `${((index + 1) / estampas.length) * 100}%`;
