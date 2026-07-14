@@ -704,6 +704,7 @@
       textureX: deslocamento horizontal
       textureY: deslocamento vertical; negativo sobe o barrado
       textureRotation: rotação da estampa
+      mobileTextureScale/mobileTextureY: ajustes exclusivos do celular em pé
     */
     const estampas = [
       {
@@ -713,7 +714,11 @@
         textureScale: 0.80,
         textureX: "0%",
         textureY: "-25%",
-        textureRotation: "90deg"
+        textureRotation: "90deg",
+        mobileTextureWidth: "108%",
+        mobileTextureScale: 1.02,
+        mobileTextureX: "0%",
+        mobileTextureY: "-32%"
       },
       {
         title: "REF. 002",
@@ -722,7 +727,11 @@
         textureScale: 0.84,
         textureX: "0%",
         textureY: "-8%",
-        textureRotation: "90deg"
+        textureRotation: "90deg",
+        mobileTextureWidth: "108%",
+        mobileTextureScale: 1.02,
+        mobileTextureX: "0%",
+        mobileTextureY: "-15%"
       },
       {
         title: "REF. 003",
@@ -731,7 +740,11 @@
         textureScale: 0.84,
         textureX: "0%",
         textureY: "-8%",
-        textureRotation: "90deg"
+        textureRotation: "90deg",
+        mobileTextureWidth: "108%",
+        mobileTextureScale: 1.02,
+        mobileTextureX: "0%",
+        mobileTextureY: "-15%"
       }
     ];
 
@@ -773,6 +786,49 @@
       document.title = `${item.title} — Lookbook`;
     }
 
+    function isPortraitMobile() {
+      return window.matchMedia(
+        "(max-width: 780px) and (orientation: portrait)"
+      ).matches;
+    }
+
+    function applyTextureSettings(item) {
+      const mobile = isPortraitMobile();
+
+      dressTexture.style.setProperty(
+        "--texture-width",
+        mobile
+          ? (item.mobileTextureWidth || item.textureWidth || "96%")
+          : (item.textureWidth || "96%")
+      );
+
+      dressTexture.style.setProperty(
+        "--texture-scale",
+        mobile
+          ? (item.mobileTextureScale ?? item.textureScale ?? 0.84)
+          : (item.textureScale ?? 0.84)
+      );
+
+      dressTexture.style.setProperty(
+        "--texture-x",
+        mobile
+          ? (item.mobileTextureX || item.textureX || "0%")
+          : (item.textureX || "0%")
+      );
+
+      dressTexture.style.setProperty(
+        "--texture-y",
+        mobile
+          ? (item.mobileTextureY || item.textureY || "-8%")
+          : (item.textureY || "-8%")
+      );
+
+      dressTexture.style.setProperty(
+        "--texture-rotation",
+        item.textureRotation || "90deg"
+      );
+    }
+
     function render(nextIndex, direction = 1) {
       const safeIndex = (nextIndex + estampas.length) % estampas.length;
       if (safeIndex === index && title.textContent) return;
@@ -789,30 +845,7 @@
         printImage.alt = `Rapport da estampa ${item.title}`;
 dressTexture.src = item.image;
 
-dressTexture.style.setProperty(
-  "--texture-width",
-  item.textureWidth || "96%"
-);
-
-dressTexture.style.setProperty(
-  "--texture-scale",
-  item.textureScale ?? 0.84
-);
-
-dressTexture.style.setProperty(
-  "--texture-x",
-  item.textureX || "0%"
-);
-
-dressTexture.style.setProperty(
-  "--texture-y",
-  item.textureY || "-8%"
-);
-
-dressTexture.style.setProperty(
-  "--texture-rotation",
-  item.textureRotation || "90deg"
-);
+applyTextureSettings(item);
         currentLabel.textContent = String(index + 1).padStart(2, "0");
         progressBar.style.width = `${((index + 1) / estampas.length) * 100}%`;
         updatePageTitle(item);
@@ -872,8 +905,13 @@ dressTexture.style.setProperty(
     prevButton.addEventListener("click", () => change(-1));
     nextButton.addEventListener("click", () => change(1));
 
-    window.addEventListener("resize", syncModelAspect);
-    window.addEventListener("orientationchange", syncModelAspect);
+    function refreshResponsiveTexture() {
+      syncModelAspect();
+      applyTextureSettings(estampas[index]);
+    }
+
+    window.addEventListener("resize", refreshResponsiveTexture);
+    window.addEventListener("orientationchange", refreshResponsiveTexture);
 
     // Primeira renderização
     index = -1;
