@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Lookbook interativo de estampas" />
+  <title>LO0500_V1 — Lookbook</title>
+
+  <style>
+    :root {
+      --bg: #f3f1ec;
+      --ink: #151515;
+      --muted: #77736b;
+      --line: rgba(21, 21, 21, .18);
+      --panel: rgba(255, 255, 255, .50);
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      overscroll-behavior: none;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button { font: inherit; }
+
+    .page {
+      width: 100%;
+      height: 100svh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: clamp(18px, 2.6vw, 42px);
+      gap: 18px;
+    }
+
+    .topbar,
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: relative;
+      z-index: 10;
+    }
+
+    .brand {
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .counter {
+      font-size: 12px;
+      letter-spacing: .12em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stage {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(280px, 1.15fr) minmax(300px, .85fr);
+      align-items: stretch;
+      gap: clamp(22px, 4vw, 74px);
+    }
+
+    .model-panel,
+    .print-panel {
+      min-height: 0;
+      position: relative;
+      border-top: 1px solid var(--line);
+    }
+
+    .model-panel {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .model-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .model-base,
+    .dress-pattern,
+    .dress-shading {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .model-base {
+      object-fit: contain;
+      object-position: center;
+      z-index: 1;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .dress-pattern {
+      z-index: 2;
+      overflow: hidden;
+
+      -webkit-mask-image: url("assets/dress-mask.png");
+      mask-image: url("assets/dress-mask.png");
+
+      -webkit-mask-size: contain;
+      mask-size: contain;
+
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+
+      -webkit-mask-position: center;
+      mask-position: center;
+
+      -webkit-mask-mode: alpha;
+      mask-mode: alpha;
+    }
+
+    .dress-pattern-inner {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .dress-texture {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: var(--texture-width, 96%);
+      height: auto;
+      max-width: none;
+
+      transform:
+        translate(
+          calc(-50% + var(--texture-x, 0%)),
+          calc(-50% + var(--texture-y, -8%))
+        )
+        rotate(var(--texture-rotation, 90deg))
+        scale(var(--texture-scale, .84));
+
+      transform-origin: center center;
+      object-fit: contain;
+      object-position: center;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .dress-shading {
+      object-fit: contain;
+      object-position: center;
+      z-index: 3;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      opacity: .55;
+    }
+
+    .print-panel {
+      min-height: 0;
+      position: relative;
+      border-top: 1px solid var(--line);
+    }
+
+    .print-panel {
+      display: grid;
+      align-content: center;
+      gap: clamp(18px, 2.5vw, 34px);
+    }
+
+    .title-block {
+      display: grid;
+      gap: 8px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 12ch;
+      font-size: clamp(38px, 6vw, 92px);
+      font-weight: 500;
+      line-height: .92;
+      letter-spacing: -.055em;
+      overflow-wrap: anywhere;
+      transition: opacity .25s ease, transform .5s var(--ease);
+    }
+
+    .print-frame {
+      width: 100%;
+      aspect-ratio: 3 / 1;
+      position: relative;
+      overflow: visible;
+      border: 1px solid var(--line);
+      background: #ddd;
+      box-shadow: 0 18px 50px rgba(0,0,0,.08);
+    }
+
+    .print-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: opacity .35s ease, transform .75s var(--ease);
+    }
+
+    .dimensions {
+      position: absolute;
+      inset: auto 12px 10px auto;
+      padding: 6px 8px;
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(8px);
+      font-size: 10px;
+      letter-spacing: .10em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: .06em;
+    }
+
+    .progress {
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+      overflow: hidden;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--ink);
+      transition: width .6s var(--ease);
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background .2s ease, color .2s ease;
+    }
+
+    .nav button:hover {
+      background: var(--ink);
+      color: var(--bg);
+    }
+
+    .is-changing h1,
+    .is-changing .print-image {
+      opacity: 0;
+      transform: translateY(12px) scale(1.015);
+    }
+
+    @media (max-width: 780px) {
+      body {
+        overflow: auto;
+      }
+
+      .page {
+        height: auto;
+        min-height: 100svh;
+        overflow: hidden;
+      }
+
+      .stage {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(60svh, 640px) auto;
+      }
+
+      .model-panel {
+        min-height: 60svh;
+      }
+
+      .model-base {
+        width: 100%;
+        height: 100%;
+        max-height: 75svh;
+      }
+
+      .print-panel {
+        padding: 28px 0 16px;
+      }
+
+      h1 {
+        max-width: 100%;
+      }
+
+      .hint {
+        max-width: 42ch;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page" id="app">
+    <header class="topbar">
+      <div class="brand">SEU NOME / COLEÇÃO</div>
+      <div class="counter" aria-live="polite">
+        <span id="current">01</span> / <span id="total">03</span>
+      </div>
+    </header>
+
+    <section class="stage">
+      <div class="model-panel">
+        <div class="model-wrap">
+
+          <img
+            class="model-base"
+            src="assets/MODELO.png"
+            alt="Modelo vestindo a estampa selecionada"
+          />
+
+          <div class="dress-pattern" aria-hidden="true">
+            <div class="dress-pattern-inner">
+              <img
+                class="dress-texture"
+                id="dressTexture"
+                src="assets/LO0500_V1.jpg"
+                alt=""
+              />
+            </div>
+          </div>
+
+          <img
+            class="dress-shading"
+            src="assets/dress-shading.png"
+            alt=""
+            aria-hidden="true"
+          />
+
+        </div>
+      </div>
+
+      <article class="print-panel">
+        <div class="title-block">
+          <p class="eyebrow">Referência da estampa</p>
+          <h1 id="printTitle">LO0500_V1</h1>
+        </div>
+
+        <div class="print-frame">
+          <img
+            class="print-image"
+            id="printImage"
+            src="assets/LO0500_V1.jpg"
+            alt="Rapport da estampa LO0500_V1"
+          />
+          <span class="dimensions">1,50 × 0,50 m</span>
+        </div>
+
+        <div class="hint">
+          Role o mouse, deslize para cima/baixo ou use as setas do teclado.
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+      <nav class="nav" aria-label="Navegação entre estampas">
+        <button id="prev" type="button" aria-label="Estampa anterior">↑</button>
+        <button id="next" type="button" aria-label="Próxima estampa">↓</button>
+      </nav>
+    </footer>
+  </main>
+
+  <script>
+    /*
+      EDITE SOMENTE ESTA LISTA PARA ADICIONAR SUAS ESTAMPAS.
+
+      title: referência que aparece como título
+      image: arquivo do retângulo 1,50 × 0,50
+      textureWidth: largura da textura antes da rotação
+      textureScale: escala fina da estampa
+      textureX: deslocamento horizontal
+      textureY: deslocamento vertical; negativo sobe o barrado
+      textureRotation: rotação da estampa
+    */
+    const estampas = [
+      {
+        title: "LO0500_V1",
+        image: "assets/LO0500_V1.jpg",
+        textureWidth: "96%",
+        textureScale: 0.80,
+        textureX: "0%",
+        textureY: "-23%",
+        textureRotation: "90deg"
+      },
+      {
+        title: "REF. 002",
+        image: "assets/estampa-02.svg",
+        textureWidth: "96%",
+        textureScale: 0.84,
+        textureX: "0%",
+        textureY: "-8%",
+        textureRotation: "90deg"
+      },
+      {
+        title: "REF. 003",
+        image: "assets/estampa-03.svg",
+        textureWidth: "96%",
+        textureScale: 0.84,
+        textureX: "0%",
+        textureY: "-8%",
+        textureRotation: "90deg"
+      }
+    ];
+
+    const app = document.querySelector("#app");
+    const title = document.querySelector("#printTitle");
+    const printImage = document.querySelector("#printImage");
+    const dressTexture = document.querySelector("#dressTexture");
+    const currentLabel = document.querySelector("#current");
+    const totalLabel = document.querySelector("#total");
+    const progressBar = document.querySelector("#progressBar");
+    const prevButton = document.querySelector("#prev");
+    const nextButton = document.querySelector("#next");
+
+    let index = 0;
+    let locked = false;
+    let wheelAccumulator = 0;
+    let touchStartY = 0;
+
+    totalLabel.textContent = String(estampas.length).padStart(2, "0");
+
+    function updatePageTitle(item) {
+      document.title = `${item.title} — Lookbook`;
+    }
+
+    function render(nextIndex, direction = 1) {
+      const safeIndex = (nextIndex + estampas.length) % estampas.length;
+      if (safeIndex === index && title.textContent) return;
+
+      locked = true;
+      app.classList.add("is-changing");
+
+      window.setTimeout(() => {
+        index = safeIndex;
+        const item = estampas[index];
+
+        title.textContent = item.title;
+        printImage.src = item.image;
+        printImage.alt = `Rapport da estampa ${item.title}`;
+dressTexture.src = item.image;
+
+dressTexture.style.setProperty(
+  "--texture-width",
+  item.textureWidth || "96%"
+);
+
+dressTexture.style.setProperty(
+  "--texture-scale",
+  item.textureScale ?? 0.84
+);
+
+dressTexture.style.setProperty(
+  "--texture-x",
+  item.textureX || "0%"
+);
+
+dressTexture.style.setProperty(
+  "--texture-y",
+  item.textureY || "-8%"
+);
+
+dressTexture.style.setProperty(
+  "--texture-rotation",
+  item.textureRotation || "90deg"
+);
+        currentLabel.textContent = String(index + 1).padStart(2, "0");
+        progressBar.style.width = `${((index + 1) / estampas.length) * 100}%`;
+        updatePageTitle(item);
+
+        app.classList.remove("is-changing");
+
+        window.setTimeout(() => {
+          locked = false;
+        }, 420);
+      }, 220);
+    }
+
+    function change(step) {
+      if (locked) return;
+      render(index + step, step);
+    }
+
+    window.addEventListener("wheel", (event) => {
+      if (window.matchMedia("(max-width: 780px)").matches) return;
+
+      event.preventDefault();
+      wheelAccumulator += event.deltaY;
+
+      if (Math.abs(wheelAccumulator) > 55) {
+        change(wheelAccumulator > 0 ? 1 : -1);
+        wheelAccumulator = 0;
+      }
+    }, { passive: false });
+
+    window.addEventListener("keydown", (event) => {
+      if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(event.key)) {
+        event.preventDefault();
+        change(1);
+      }
+      if (["ArrowUp", "ArrowLeft", "PageUp"].includes(event.key)) {
+        event.preventDefault();
+        change(-1);
+      }
+    });
+
+    window.addEventListener("touchstart", (event) => {
+      touchStartY = event.changedTouches[0].clientY;
+    }, { passive: true });
+
+    window.addEventListener("touchend", (event) => {
+      const delta = touchStartY - event.changedTouches[0].clientY;
+      if (Math.abs(delta) > 45) change(delta > 0 ? 1 : -1);
+    }, { passive: true });
+
+    prevButton.addEventListener("click", () => change(-1));
+    nextButton.addEventListener("click", () => change(1));
+
+    // Primeira renderização
+    index = -1;
+    render(0);
+  </script>
+</body>
+</html>
