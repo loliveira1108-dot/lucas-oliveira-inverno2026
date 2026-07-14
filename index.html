@@ -103,7 +103,7 @@
     }
 
     .model-base,
-    .dress-pattern,
+    .dress-svg,
     .dress-shading {
       position: absolute;
       inset: 0;
@@ -119,54 +119,36 @@
       pointer-events: none;
     }
 
-    .dress-pattern {
+    /*
+      A máscara e a textura agora vivem dentro de um SVG com viewBox
+      igual às dimensões reais da MODELO.png. Assim, desktop e mobile
+      usam exatamente as mesmas coordenadas.
+    */
+    .dress-svg {
       z-index: 2;
-      overflow: hidden;
-
-      -webkit-mask-image: url("assets/dress-mask.png");
-      mask-image: url("assets/dress-mask.png");
-
-      -webkit-mask-size: contain;
-      mask-size: contain;
-
-      -webkit-mask-repeat: no-repeat;
-      mask-repeat: no-repeat;
-
-      -webkit-mask-position: center;
-      mask-position: center;
-
-      -webkit-mask-mode: alpha;
-      mask-mode: alpha;
+      display: block;
+      overflow: visible;
+      pointer-events: none;
     }
 
-    .dress-pattern-inner {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-    }
-
-    .dress-texture {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: var(--texture-width, 96%);
-      height: auto;
-      max-width: none;
-
-      transform:
-        translate(
-          calc(-50% + var(--texture-x, 0%)),
-          calc(-50% + var(--texture-y, -8%))
-        )
-        rotate(var(--texture-rotation, 90deg))
-        scale(var(--texture-scale, .84));
-
-      transform-origin: center center;
-      object-fit: contain;
-      object-position: center;
+    .dress-svg-texture {
       mix-blend-mode: multiply;
       pointer-events: none;
+    }
+
+    .dress-shading {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .model-base {
+      object-fit: contain;
+      object-position: center;
+      z-index: 1;
       user-select: none;
+      pointer-events: none;
     }
 
     .dress-shading {
@@ -355,7 +337,7 @@
       }
 
       .model-base,
-      .dress-pattern,
+      .dress-svg,
       .dress-shading {
         width: 100%;
         height: 100%;
@@ -367,12 +349,6 @@
         object-position: center center;
       }
 
-      .dress-pattern {
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-position: center center;
-        mask-position: center center;
-      }
 
       .print-panel {
         min-height: 0;
@@ -533,7 +509,7 @@
 
       .model-wrap,
       .model-base,
-      .dress-pattern,
+      .dress-svg,
       .dress-shading {
         width: 100%;
         height: 100%;
@@ -641,16 +617,40 @@
             alt="Modelo vestindo a estampa selecionada"
           />
 
-          <div class="dress-pattern" aria-hidden="true">
-            <div class="dress-pattern-inner">
-              <img
-                class="dress-texture"
+          <svg
+            class="dress-svg"
+            id="dressSvg"
+            aria-hidden="true"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <defs>
+              <mask
+                id="dressMaskSvg"
+                maskUnits="userSpaceOnUse"
+                maskContentUnits="userSpaceOnUse"
+                style="mask-type: alpha"
+              >
+                <image
+                  id="dressMaskImage"
+                  href="assets/dress-mask.png"
+                  x="0"
+                  y="0"
+                  width="1"
+                  height="1"
+                  preserveAspectRatio="none"
+                />
+              </mask>
+            </defs>
+
+            <g mask="url(#dressMaskSvg)">
+              <image
+                class="dress-svg-texture"
                 id="dressTexture"
-                src="assets/LO0500_V1.jpg"
-                alt=""
+                href="assets/LO0500_V1.jpg"
+                preserveAspectRatio="none"
               />
-            </div>
-          </div>
+            </g>
+          </svg>
 
           <img
             class="dress-shading"
@@ -699,12 +699,10 @@
 
       title: referência que aparece como título
       image: arquivo do retângulo 1,50 × 0,50
-      textureWidth: largura da textura antes da rotação
-      textureScale: escala fina da estampa
-      textureX: deslocamento horizontal
-      textureY: deslocamento vertical; negativo sobe o barrado
-      textureRotation: rotação da estampa
-      mobileTextureScale/mobileTextureY: ajustes exclusivos do celular em pé
+      textureWidth: largura da textura em relação à largura da MODELO.png
+      textureScale: escala fina
+      textureX/textureY: deslocamentos em porcentagem da MODELO.png
+      textureRotation: rotação; desktop e mobile usam as mesmas coordenadas
     */
     const estampas = [
       {
@@ -714,11 +712,7 @@
         textureScale: 0.80,
         textureX: "0%",
         textureY: "-25%",
-        textureRotation: "90deg",
-        mobileTextureWidth: "108%",
-        mobileTextureScale: 1.02,
-        mobileTextureX: "0%",
-        mobileTextureY: "-32%"
+        textureRotation: "90deg"
       },
       {
         title: "REF. 002",
@@ -727,11 +721,7 @@
         textureScale: 0.84,
         textureX: "0%",
         textureY: "-8%",
-        textureRotation: "90deg",
-        mobileTextureWidth: "108%",
-        mobileTextureScale: 1.02,
-        mobileTextureX: "0%",
-        mobileTextureY: "-15%"
+        textureRotation: "90deg"
       },
       {
         title: "REF. 003",
@@ -740,18 +730,16 @@
         textureScale: 0.84,
         textureX: "0%",
         textureY: "-8%",
-        textureRotation: "90deg",
-        mobileTextureWidth: "108%",
-        mobileTextureScale: 1.02,
-        mobileTextureX: "0%",
-        mobileTextureY: "-15%"
+        textureRotation: "90deg"
       }
     ];
 
     const app = document.querySelector("#app");
     const title = document.querySelector("#printTitle");
     const printImage = document.querySelector("#printImage");
+    const dressSvg = document.querySelector("#dressSvg");
     const dressTexture = document.querySelector("#dressTexture");
+    const dressMaskImage = document.querySelector("#dressMaskImage");
     const modelBase = document.querySelector("#modelBase");
     const modelWrap = document.querySelector(".model-wrap");
     const currentLabel = document.querySelector("#current");
@@ -767,65 +755,62 @@
 
     totalLabel.textContent = String(estampas.length).padStart(2, "0");
 
-    function syncModelAspect() {
+    function syncModelGeometry() {
       if (!modelBase.naturalWidth || !modelBase.naturalHeight) return;
 
-      modelWrap.style.setProperty(
-        "--model-aspect",
-        `${modelBase.naturalWidth} / ${modelBase.naturalHeight}`
-      );
+      const width = modelBase.naturalWidth;
+      const height = modelBase.naturalHeight;
+
+      modelWrap.style.setProperty("--model-aspect", `${width} / ${height}`);
+
+      dressSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      dressMaskImage.setAttribute("width", width);
+      dressMaskImage.setAttribute("height", height);
+
+      applyTextureSettings(estampas[index < 0 ? 0 : index]);
     }
 
     if (modelBase.complete) {
-      syncModelAspect();
+      syncModelGeometry();
     } else {
-      modelBase.addEventListener("load", syncModelAspect, { once: true });
+      modelBase.addEventListener("load", syncModelGeometry, { once: true });
     }
 
     function updatePageTitle(item) {
       document.title = `${item.title} — Lookbook`;
     }
 
-    function isPortraitMobile() {
-      return window.matchMedia(
-        "(max-width: 780px) and (orientation: portrait)"
-      ).matches;
-    }
-
     function applyTextureSettings(item) {
-      const mobile = isPortraitMobile();
+      if (!modelBase.naturalWidth || !modelBase.naturalHeight) return;
 
-      dressTexture.style.setProperty(
-        "--texture-width",
-        mobile
-          ? (item.mobileTextureWidth || item.textureWidth || "96%")
-          : (item.textureWidth || "96%")
-      );
+      const modelWidth = modelBase.naturalWidth;
+      const modelHeight = modelBase.naturalHeight;
 
-      dressTexture.style.setProperty(
-        "--texture-scale",
-        mobile
-          ? (item.mobileTextureScale ?? item.textureScale ?? 0.84)
-          : (item.textureScale ?? 0.84)
-      );
+      const widthPercent = parseFloat(item.textureWidth || "96") / 100;
+      const scale = item.textureScale ?? 0.84;
+      const offsetX = parseFloat(item.textureX || "0") / 100;
+      const offsetY = parseFloat(item.textureY || "-8") / 100;
+      const rotation = parseFloat(item.textureRotation || "90");
 
-      dressTexture.style.setProperty(
-        "--texture-x",
-        mobile
-          ? (item.mobileTextureX || item.textureX || "0%")
-          : (item.textureX || "0%")
-      );
+      /*
+        A arte é 3:1. Antes da rotação:
+        largura = fração da largura da modelo;
+        altura = largura / 3.
+      */
+      const textureWidth = modelWidth * widthPercent;
+      const textureHeight = textureWidth / 3;
 
-      dressTexture.style.setProperty(
-        "--texture-y",
-        mobile
-          ? (item.mobileTextureY || item.textureY || "-8%")
-          : (item.textureY || "-8%")
-      );
+      const centerX = modelWidth * (0.5 + offsetX);
+      const centerY = modelHeight * (0.5 + offsetY);
 
-      dressTexture.style.setProperty(
-        "--texture-rotation",
-        item.textureRotation || "90deg"
+      dressTexture.setAttribute("href", item.image);
+      dressTexture.setAttribute("x", -textureWidth / 2);
+      dressTexture.setAttribute("y", -textureHeight / 2);
+      dressTexture.setAttribute("width", textureWidth);
+      dressTexture.setAttribute("height", textureHeight);
+      dressTexture.setAttribute(
+        "transform",
+        `translate(${centerX} ${centerY}) rotate(${rotation}) scale(${scale})`
       );
     }
 
@@ -843,7 +828,7 @@
         title.textContent = item.title;
         printImage.src = item.image;
         printImage.alt = `Rapport da estampa ${item.title}`;
-dressTexture.src = item.image;
+dressTexture.setAttribute("href", item.image);
 
 applyTextureSettings(item);
         currentLabel.textContent = String(index + 1).padStart(2, "0");
@@ -906,8 +891,8 @@ applyTextureSettings(item);
     nextButton.addEventListener("click", () => change(1));
 
     function refreshResponsiveTexture() {
-      syncModelAspect();
-      applyTextureSettings(estampas[index]);
+      syncModelGeometry();
+      applyTextureSettings(estampas[index < 0 ? 0 : index]);
     }
 
     window.addEventListener("resize", refreshResponsiveTexture);
